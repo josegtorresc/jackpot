@@ -1,0 +1,86 @@
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
+app.use(express.json());
+
+let jackpotAmount = 1000;
+let jackpotTriggerAmount = 100;
+let jackpotMaxAmount = 1200;
+let jackpotActive = false;
+let jackpotContributions = 0;
+
+app.get('/api/jackpot', (req, res) => {
+  res.json({ jackpotAmount });
+});
+
+app.post('/api/spin', (req, res) => {
+  const { amount } = req.body;
+
+  if (!jackpotActive && jackpotAmount + amount >= jackpotTriggerAmount) {
+    jackpotActive = true;
+    res.json({
+      amountWon: 0,
+      jackpotAmount: Math.floor(jackpotAmount),
+      inJackpot: true,
+      wonJackpot: false,
+    });
+    return;
+  }
+
+  if (jackpotActive) {
+    let amountWon = 0;
+    if (jackpotAmount >= jackpotMaxAmount) {
+      amountWon = Math.floor(jackpotAmount);
+      jackpotAmount = 1000;
+      jackpotActive = false;
+    } else {
+      const minPrize = 15;
+      const maxPrize = 50;
+      amountWon = Math.floor(
+        Math.random() * (maxPrize - minPrize + 1) + minPrize,
+      );
+      jackpotAmount += amountWon;
+      jackpotContributions++;
+    }
+
+    res.json({
+      amountWon,
+      jackpotAmount: Math.floor(jackpotAmount),
+      inJackpot: jackpotActive,
+      wonJackpot: amountWon === jackpotMaxAmount,
+    });
+  } else {
+    const minPrize = 15;
+    const maxPrize = 50;
+    let amountWon = Math.floor(
+      Math.random() * (maxPrize - minPrize + 1) + minPrize,
+    );
+    jackpotAmount += amountWon;
+
+    res.json({
+      amountWon,
+      jackpotAmount: Math.floor(jackpotAmount),
+      inJackpot: jackpotActive,
+      wonJackpot: false,
+    });
+  }
+});
+
+app.post('/api/resetJackpot', (req, res) => {
+  jackpotAmount = 1000; // Reiniciar el monto del jackpot al valor inicial
+  jackpotActive = false; // Desactivar el sorteo del jackpot
+  jackpotContributions = 0; // Reiniciar el contador de contribuciones al jackpot
+  res.json({ message: 'Jackpot reset successfully' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
+});
